@@ -286,7 +286,7 @@ function drawParticles() {
 }
 
 // Game state
-let player, enemies, bullets, walls, keys, gameState, score, lives, wave, totalWaves, waveTimer, invTimer;
+let player = null, enemies = [], bullets = [], walls = [], keys = {}, gameState = 'start', score = 0, lives = 3, wave = 0, totalWaves = 3, waveTimer = 0, invTimer = 0;
 let enemyBullets = []; // separate tracking for enemy bullets
 
 function initGame() {
@@ -332,7 +332,8 @@ function updateHUD() {
 window.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   keys[e.code] = true;
-  if (e.key === ' ') { e.preventDefault(); if (player.alive) player.fire(bullets); }
+  console.log('keydown:', e.key, 'gameState:', gameState, 'player:', player ? player.alive : null);
+  if (e.key === ' ') { e.preventDefault(); if (player && player.alive) player.fire(bullets); }
 });
 window.addEventListener('keyup', e => {
   keys[e.key.toLowerCase()] = false;
