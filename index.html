@@ -120,12 +120,10 @@ class Tank {
     if (dy !== 0) this.dir = dy > 0 ? 2 : 0;
     let hb = { x: nx + 5, y: ny + 5, w: this.size - 10, h: this.size - 10 };
     let blocked = false;
-    for (let row of walls) {
-      for (let t of row) {
-        if (t === 1 || t === 2 || t === 5) {
-          if (rectCollide(hb, { x: t.col * TILE + 4, y: t.row * TILE + 4, w: TILE - 8, h: TILE - 8 })) {
-            blocked = true; break;
-          }
+    for (let t of walls) {
+      if (t.type === 1 || t.type === 2 || t.type === 5) {
+        if (rectCollide(hb, { x: t.col * TILE + 4, y: t.row * TILE + 4, w: TILE - 8, h: TILE - 8 })) {
+          blocked = true; break;
         }
       }
     }
@@ -462,7 +460,7 @@ function draw() {
   // Draw river anim
   drawParticles();
   for (let e of enemies) e.draw();
-  if (player.alive) {
+  if (player && player.alive) {
     if (invTimer > 0 && Math.floor(invTimer / 8) % 2 === 0) {
       // blink when invincible
     } else {
