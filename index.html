@@ -11,9 +11,9 @@
 </style>
 </head>
 <body>
-<div class="hud">分数: <span id="score">0</span> | 生命: <span id="lives">♥♥♥</span> | 波次: <span id="wave">1</span>/3 | 敌人: <span id="enemies">6</span></div>
+<div class="hud">分数: <span id="score">0</span> | 生命: <span id="lives">♥♥♥</span> | 队友: <span id="ally">♥♥♥</span> | 波次: <span id="wave">1</span>/3 | 敌人: <span id="enemies">6</span> | 时间: <span id="timer">0.0s</span></div>
 <canvas id="c" width="480" height="640"></canvas>
-<div class="hint">WASD / 方向键 移动 | 空格 射击 | Esc 重新开始</div>
+<div class="hint">WASD / 方向键 移动 | 空格 射击 | Esc 暂停</div>
 <script>
 // ===== 常量 =====
 const canvas = document.getElementById('c');
@@ -22,40 +22,89 @@ const W = 480, H = 640, T = 40;
 const COLS = 12, ROWS = 16;
 
 // ===== 地图 =====
-const MAP = [
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,1,1,5,5,1,1,0,0,0],
-  [0,0,0,0,0,5,5,0,0,0,0,0],
+const MAPS = [
+  // 地图1 - 经典战场
+  [
+    [2,2,2,0,0,0,0,0,0,2,2,2],
+    [2,0,0,0,1,1,1,1,0,0,0,2],
+    [0,0,1,0,0,0,0,0,0,1,0,0],
+    [0,0,1,0,1,0,0,1,0,1,0,0],
+    [0,0,0,0,1,0,0,1,0,0,0,0],
+    [0,1,1,0,0,0,0,0,0,1,1,0],
+    [0,0,0,0,0,2,2,0,0,0,0,0],
+    [0,1,0,0,0,2,2,0,0,0,1,0],
+    [0,1,0,0,0,0,0,0,0,0,1,0],
+    [0,1,1,0,0,0,0,0,0,1,1,0],
+    [0,0,0,0,1,0,0,1,0,0,0,0],
+    [0,0,1,0,1,0,0,1,0,1,0,0],
+    [0,0,1,0,0,0,0,0,0,1,0,0],
+    [2,0,0,0,1,1,1,1,0,0,0,2],
+    [2,2,2,0,0,5,5,0,0,2,2,2],
+    [0,0,0,0,0,5,5,0,0,0,0,0],
+  ],
+  // 地图2 - 迷宫通道（保证四周有入口）
+  [
+    [0,0,0,1,1,0,0,1,1,0,0,0],
+    [0,1,0,1,0,0,0,0,1,0,1,0],
+    [0,1,0,0,0,1,1,0,0,0,1,0],
+    [0,0,0,1,0,2,2,0,1,0,0,0],
+    [1,1,0,1,0,2,2,0,1,0,1,1],
+    [0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,1,1,0,1,0,0,1,0,1,1,0],
+    [0,0,0,0,1,5,5,1,0,0,0,0],
+    [0,0,0,0,1,5,5,1,0,0,0,0],
+    [0,1,1,0,1,0,0,1,0,1,1,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0],
+    [1,1,0,1,0,2,2,0,1,0,1,1],
+    [0,0,0,1,0,2,2,0,1,0,0,0],
+    [0,1,0,0,0,1,1,0,0,0,1,0],
+    [0,1,0,1,0,0,0,0,1,0,1,0],
+    [0,0,0,1,1,0,0,1,1,0,0,0],
+  ],
+  // 地图3 - 简单开放战场
+  [
+    [0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,1,1,0,0,0,0,1,1,0,0],
+    [0,0,1,0,0,1,1,0,0,1,0,0],
+    [0,1,0,0,0,2,2,0,0,0,1,0],
+    [0,0,0,0,0,2,2,0,0,0,0,0],
+    [0,1,0,0,0,2,2,0,0,0,1,0],
+    [0,0,1,0,0,0,0,0,0,1,0,0],
+    [0,0,0,0,0,5,5,0,0,0,0,0],
+    [0,0,0,0,0,5,5,0,0,0,0,0],
+    [0,1,0,0,0,0,0,0,0,0,1,0],
+    [0,0,1,0,0,2,2,0,0,1,0,0],
+    [0,0,0,0,0,2,2,0,0,0,0,0],
+    [0,1,0,0,0,2,2,0,0,0,1,0],
+    [0,0,1,0,0,0,0,0,0,1,0,0],
+    [0,0,1,1,0,0,0,0,1,1,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0],
+  ],
 ];
+let currentMapIndex = 0;
+const MAP = MAPS[currentMapIndex];
 
 function solid(col, row) {
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return true;
-  let t = MAP[row][col];
+  let t = MAPS[currentMapIndex][row][col];
   return t === 1 || t === 2 || t === 5;
 }
 
 // ===== 游戏全局状态 =====
 let G = {
-  state: 'playing',
-  score: 0, lives: 3, wave: 0,
-  inv: 0,
+  state: 'start',
+  score: 0, lives: 3, allyLives: 3, wave: 0,
+  inv: 0, allyInv: 0,
   player: null,
+  ally: null,
   enemies: [],
   bullets: [],
-  parts: []
+  parts: [],
+  startTime: 0,
+  endTime: 0,
+  rankings: [],
+  selectedOption: 0, // 0=开始游戏, 1=退出
+  countdown: 0 // 下一波倒计时
 };
 
 // ===== 坦克类 =====
@@ -67,20 +116,25 @@ function makeTank(col, row, dir, speed, color, isPlayer) {
     color, isPlayer,
     alive: true,
     cooldown: isPlayer ? 0 : 80 + Math.random() * 60,
-    stuck: 0  // 连续卡住计数
+    stuck: 0,  // 连续卡住计数
+    pause: 0,  // 到达目标后停顿计数
+    moveCount: 0  // 连续移动格数
   };
 }
 
 function playerAtGrid(col, row) { return { col, row }; }
 
 // ===== 初始化玩家 =====
-G.player = makeTank(6, 13, 0, 0, '#43A047', true);
+G.player = makeTank(5, 14, 0, 0, '#43A047', true);
+G.ally = makeTank(6, 14, 0, 0, '#1565C0', true);
+G.ally.color = '#1565C0';
 
 // ===== 敌人生成 =====
 function spawnWave() {
   G.wave++;
   G.enemies = [];  // 清空旧敌人
   G.bullets = [];  // 清空旧子弹
+  currentMapIndex = (G.wave - 1) % MAPS.length; // 切换地图
   let cols = [1, 4, 7, 10];
   let colors = ['#e53935', '#fb8c00', '#8e24aa', '#00acc1'];
   for (let i = 0; i < 6; i++) {
@@ -88,6 +142,20 @@ function spawnWave() {
     G.enemies.push(e);
   }
   updateHUD();
+}
+
+// ===== 开始游戏 =====
+function startGame() {
+  G.state = 'playing';
+  G.score = 0; G.lives = 3; G.allyLives = 3; G.wave = 0;
+  G.inv = 0; G.allyInv = 0; G.selectedOption = 0; G.countdown = 0;
+  G.player = makeTank(5, 14, 0, 0, '#43A047', true);
+  G.ally = makeTank(6, 14, 0, 0, '#1565C0', true);
+  G.enemies = []; G.bullets = []; G.parts = [];
+  currentMapIndex = 0;
+  G.startTime = Date.now();
+  G.endTime = 0;
+  spawnWave();
 }
 
 // ===== 爆炸 =====
@@ -103,47 +171,180 @@ function boom(x, y, n, col) {
 function updateHUD() {
   document.getElementById('score').textContent = G.score;
   document.getElementById('lives').textContent = '♥'.repeat(G.lives) + '♡'.repeat(Math.max(0, 3 - G.lives));
+  document.getElementById('ally').textContent = '♥'.repeat(G.allyLives) + '♡'.repeat(Math.max(0, 3 - G.allyLives));
   document.getElementById('wave').textContent = G.wave;
   document.getElementById('enemies').textContent = G.enemies.filter(e => e.alive).length;
+  // 计时器显示
+  let timer = document.getElementById('timer');
+  if (timer) {
+    if (G.state === 'playing') {
+      let elapsed = (Date.now() - G.startTime) / 1000;
+      timer.textContent = elapsed.toFixed(1) + 's';
+    } else if (G.state === 'win' || G.state === 'lose') {
+      let total = ((G.endTime || Date.now()) - G.startTime) / 1000;
+      timer.textContent = total.toFixed(1) + 's';
+    }
+  }
 }
 
 // ===== 输入 =====
 const keys = {};
 document.addEventListener('keydown', e => {
   keys[e.code] = true;
+
+  // 开始/结束界面导航
+  if (G.state === 'start' || G.state === 'win' || G.state === 'lose') {
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+      G.selectedOption = G.selectedOption > 0 ? G.selectedOption - 1 : 0;
+    }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      G.selectedOption = G.selectedOption < 2 ? G.selectedOption + 1 : 2;
+    }
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (G.selectedOption === 0) {
+        startGame();
+      } else if (G.selectedOption === 1) {
+        G.state = 'start';
+        G.selectedOption = 0;
+      } else {
+        window.close();
+      }
+    }
+    if (e.code === 'Escape') {
+      if (G.state === 'win' || G.state === 'lose') {
+        G.state = 'start';
+        G.selectedOption = 0;
+      }
+    }
+    return;
+  }
+
   if (e.key === ' ') { e.preventDefault(); tryShoot(); }
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
-  if (e.key === 'Escape') location.reload();
+  if (e.key === 'Escape') G.state = 'start';
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 
 // ===== 玩家射击 =====
 function tryShoot() {
-  if (G.state !== 'playing' || !G.player) return;
-  let vx = 0, vy = 0;
-  if (G.player.dir === 0) vy = -8;
-  if (G.player.dir === 1) vx = 8;
-  if (G.player.dir === 2) vy = 8;
-  if (G.player.dir === 3) vx = -8;
-  G.bullets.push({ x: G.player.px + T/2 - 4, y: G.player.py + T/2 - 4, vx, vy, owner: 'p' });
+  if (G.state !== 'playing' || G.countdown > 0) return;
+  if (G.player && G.player.alive) {
+    let vx = 0, vy = 0;
+    if (G.player.dir === 0) vy = -8;
+    if (G.player.dir === 1) vx = 8;
+    if (G.player.dir === 2) vy = 8;
+    if (G.player.dir === 3) vx = -8;
+    G.bullets.push({ x: G.player.px + T/2 - 4, y: G.player.py + T/2 - 4, vx, vy, owner: 'p' });
+  }
+  if (G.ally && G.ally.alive) {
+    let vx = 0, vy = 0;
+    if (G.ally.dir === 0) vy = -8;
+    if (G.ally.dir === 1) vx = 8;
+    if (G.ally.dir === 2) vy = 8;
+    if (G.ally.dir === 3) vx = -8;
+    G.bullets.push({ x: G.ally.px + T/2 - 4, y: G.ally.py + T/2 - 4, vx, vy, owner: 'p' });
+  }
+}
+
+// ===== 队友移动（与敌人相同的行为） =====
+function updateAlly(dt) {
+  let a = G.ally;
+  if (!a || !a.alive) return;
+  if (G.countdown > 0) return; // 倒计时期间停止移动
+  a.cooldown = Math.max(0, a.cooldown - 1);
+
+  if (a.pause > 0) { a.pause--; return; }
+
+  let dx = a.targetPx - a.px;
+  let dy = a.targetPy - a.py;
+  let dist = Math.sqrt(dx*dx + dy*dy);
+
+  if (dist < 1) {
+    a.px = a.targetPx; a.py = a.targetPy;
+    a.col = Math.round(a.px / T);
+    a.row = Math.round(a.py / T);
+    a.moveCount++;
+
+    if (a.moveCount >= ENEMY_MIN_MOVE + Math.floor(Math.random() * (ENEMY_MAX_MOVE - ENEMY_MIN_MOVE + 1))) {
+      a.pause = ENEMY_PAUSE + Math.floor(Math.random() * 10);
+      a.moveCount = 0;
+    }
+
+    // 追踪玩家
+    let p = G.player;
+    let dirs = [];
+    if (p) {
+      if (p.col > a.col) dirs.push({ d:1, dc:1, dr:0 });
+      if (p.col < a.col) dirs.push({ d:3, dc:-1, dr:0 });
+      if (p.row > a.row) dirs.push({ d:2, dc:0, dr:1 });
+      if (p.row < a.row) dirs.push({ d:0, dc:0, dr:-1 });
+    }
+    let all = [{d:0,dc:0,dr:-1},{d:1,dc:1,dr:0},{d:2,dc:0,dr:1},{d:3,dc:-1,dr:0}];
+    for (let x of all) { if (!dirs.some(d => d.d === x.d)) dirs.push(x); }
+    if (Math.random() < 0.5 && dirs.length > 1) {
+      let tmp = dirs[0]; dirs[0] = dirs[1]; dirs[1] = tmp;
+    }
+
+    let moved = false;
+    for (let opt of dirs) {
+      let nc = a.col + opt.dc;
+      let nr = a.row + opt.dr;
+      if (!solid(nc, nr)) {
+        a.dir = opt.d; a.col = nc; a.row = nr;
+        a.targetPx = nc * T; a.targetPy = nr * T;
+        moved = true; a.stuck = 0;
+        break;
+      }
+    }
+    if (!moved) {
+      a.stuck++;
+      a.pause = ENEMY_PAUSE;
+      if (a.stuck >= 60) {
+        a.stuck = 0;
+        a.dir = Math.floor(Math.random() * 4);
+      }
+    }
+  } else {
+    let t = Math.min(1, ENEMY_SPEED);
+    a.px += dx * t;
+    a.py += dy * t;
+  }
+
+  // 射击（比敌人稍慢）
+  if (a.cooldown <= 0 && Math.random() < 0.03) {
+    let vx = 0, vy = 0;
+    if (a.dir === 0) vy = -7;
+    if (a.dir === 1) vx = 7;
+    if (a.dir === 2) vy = 7;
+    if (a.dir === 3) vx = -7;
+    G.bullets.push({ x: a.px + T/2 - 4, y: a.py + T/2 - 4, vx, vy, owner: 'p' });
+    a.cooldown = 100 + Math.random() * 60;
+  }
 }
 
 // ===== 玩家移动（网格对齐） =====
-function updatePlayer() {
+const MOVE_SPEED = 0.08; // 玩家移动速度
+
+function updatePlayer(dt) {
   let p = G.player;
   if (!p || !p.alive) return;
+  if (G.countdown > 0) return; // 倒计时期间停止移动
 
-  // 先平滑移动到当前目标格
+  // 基于时间的均匀移动
   let arrived = false;
   let dx = p.targetPx - p.px;
   let dy = p.targetPy - p.py;
   let dist = Math.sqrt(dx*dx + dy*dy);
-  if (dist < 1.5) {
+
+  // 使用固定 interpolation factor，保证均匀移动
+  if (dist < 1) {
     p.px = p.targetPx; p.py = p.targetPy;
     arrived = true;
   } else {
-    p.px += dx * 0.3;
-    p.py += dy * 0.3;
+    let t = Math.min(1, MOVE_SPEED);
+    p.px += dx * t;
+    p.py += dy * t;
   }
 
   // 如果到达目标格，读取新输入
@@ -166,48 +367,64 @@ function updatePlayer() {
       if (!solid(nc, nr)) {
         p.col = nc; p.row = nr;
         p.targetPx = nc * T; p.targetPy = nr * T;
-      } else {
-        // 朝墙走时，仍然转向但不移动
-        p.col = nc; p.row = nr;
-        p.targetPx = p.col * T; p.targetPy = p.row * T;
       }
     }
   }
 }
 
 // ===== 敌人移动 =====
-function updateEnemies() {
+const ENEMY_SPEED = 0.05; // 敌人移动速度
+const ENEMY_PAUSE = 15;   // 敌人在到达目标后停顿的帧数（减少）
+const ENEMY_MIN_MOVE = 1; // 最少连续移动格数
+const ENEMY_MAX_MOVE = 3; // 最多连续移动格数
+
+function updateEnemies(dt) {
   for (let e of G.enemies) {
     if (!e.alive) continue;
     e.cooldown = Math.max(0, e.cooldown - 1);
 
-    // 平滑移动到目标格
+    // 停顿中：跳过移动
+    if (e.pause > 0) { e.pause--; continue; }
+
+    // 均匀移动到目标格
     let dx = e.targetPx - e.px;
     let dy = e.targetPy - e.py;
     let dist = Math.sqrt(dx*dx + dy*dy);
 
-    if (dist < 1.5) {
-      // 到达目标，准备下一格
+    if (dist < 1) {
+      // 到达目标
       e.px = e.targetPx; e.py = e.targetPy;
       e.col = Math.round(e.px / T);
       e.row = Math.round(e.py / T);
+      e.moveCount++;
 
-      // 选下一步（朝玩家方向优先）
+      // 检查是否需要停顿（已移动足够格数或随机停顿）
+      if (e.moveCount >= ENEMY_MIN_MOVE + Math.floor(Math.random() * (ENEMY_MAX_MOVE - ENEMY_MIN_MOVE + 1))) {
+        e.pause = ENEMY_PAUSE + Math.floor(Math.random() * 10); // 随机停顿
+        e.moveCount = 0;
+      }
+
+      // 随机选择方向（70%概率随机，30%概率追踪玩家）
       let p = G.player;
-      let dirs = [
-        p && p.col > e.col  ? { d:1, dc:1, dr:0 } : null,
-        p && p.col < e.col  ? { d:3, dc:-1, dr:0 } : null,
-        p && p.row > e.row  ? { d:2, dc:0, dr:1 } : null,
-        p && p.row < e.row  ? { d:0, dc:0, dr:-1 } : null,
-      ].filter(Boolean);
-
-      // 补充其他方向
-      let all = [{d:0,dc:0,dr:-1},{d:1,dc:1,dr:0},{d:2,dc:0,dr:1},{d:3,dc:-1,dr:0}];
-      for (let a of all) { if (!dirs.some(d => d.d === a.d)) dirs.push(a); }
-
-      // 随机前两个偏向
-      if (Math.random() < 0.4 && dirs.length > 1) {
-        let tmp = dirs[0]; dirs[0] = dirs[1]; dirs[1] = tmp;
+      let dirs = [];
+      if (Math.random() < 0.7) {
+        dirs = [{d:0,dc:0,dr:-1},{d:1,dc:1,dr:0},{d:2,dc:0,dr:1},{d:3,dc:-1,dr:0}];
+        for (let i = dirs.length - 1; i > 0; i--) {
+          let j = Math.floor(Math.random() * (i + 1));
+          [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+        }
+      } else {
+        dirs = [
+          p && p.col > e.col  ? { d:1, dc:1, dr:0 } : null,
+          p && p.col < e.col  ? { d:3, dc:-1, dr:0 } : null,
+          p && p.row > e.row  ? { d:2, dc:0, dr:1 } : null,
+          p && p.row < e.row  ? { d:0, dc:0, dr:-1 } : null,
+        ].filter(Boolean);
+        let all = [{d:0,dc:0,dr:-1},{d:1,dc:1,dr:0},{d:2,dc:0,dr:1},{d:3,dc:-1,dr:0}];
+        for (let a of all) { if (!dirs.some(d => d.d === a.d)) dirs.push(a); }
+        if (Math.random() < 0.5 && dirs.length > 1) {
+          let tmp = dirs[0]; dirs[0] = dirs[1]; dirs[1] = tmp;
+        }
       }
 
       let moved = false;
@@ -223,16 +440,17 @@ function updateEnemies() {
       }
       if (!moved) {
         e.stuck++;
-        // 每60帧强制换方向重试
+        e.pause = ENEMY_PAUSE; // 卡住时停顿
         if (e.stuck >= 60) {
           e.stuck = 0;
-          e.dir = (e.dir + 1 + Math.floor(Math.random() * 3)) % 4;
+          e.dir = Math.floor(Math.random() * 4);
         }
       }
     } else {
-      // 移动中
-      e.px += dx * 0.2;
-      e.py += dy * 0.2;
+      // 使用敌人速度移动
+      let t = Math.min(1, ENEMY_SPEED);
+      e.px += dx * t;
+      e.py += dy * t;
     }
 
     // 射击
@@ -249,7 +467,7 @@ function updateEnemies() {
 }
 
 // ===== 子弹更新 =====
-function updateBullets() {
+function updateBullets(dt) {
   for (let i = G.bullets.length - 1; i >= 0; i--) {
     let b = G.bullets[i];
     b.x += b.vx; b.y += b.vy;
@@ -260,16 +478,22 @@ function updateBullets() {
 
     let col = Math.max(0, Math.min(COLS-1, Math.floor(b.x/T)));
     let row = Math.max(0, Math.min(ROWS-1, Math.floor(b.y/T)));
-    let t = MAP[row][col];
+    let t = MAPS[currentMapIndex][row][col];
     if (t === 1 || t === 2 || t === 5) {
       boom(b.x+4, b.y+4, 5, '#ff9800'); G.bullets.splice(i, 1); continue;
     }
 
-    if (b.owner === 'e' && G.inv <= 0 && G.player && G.player.alive) {
+    if (b.owner === 'e' && G.inv <= 0) {
       let p = G.player;
-      if (b.x+8 > p.px+3 && b.x < p.px+T-3 && b.y+8 > p.py+3 && b.y < p.py+T-3) {
+      if (p && p.alive && b.x+8 > p.px+3 && b.x < p.px+T-3 && b.y+8 > p.py+3 && b.y < p.py+T-3) {
         G.lives--; G.inv = 90; boom(p.px+T/2, p.py+T/2, 15, '#e53935'); G.bullets.splice(i, 1);
-        if (G.lives <= 0) { G.state = 'lose'; }
+        if (G.lives <= 0) { G.state = 'lose'; G.endTime = Date.now(); }
+        updateHUD(); continue;
+      }
+      let a = G.ally;
+      if (a && a.alive && G.allyInv <= 0 && b.x+8 > a.px+3 && b.x < a.px+T-3 && b.y+8 > a.py+3 && b.y < a.py+T-3) {
+        G.allyLives--; G.allyInv = 90; boom(a.px+T/2, a.py+T/2, 15, '#1565C0'); G.bullets.splice(i, 1);
+        if (G.allyLives <= 0) { a.alive = false; }
         updateHUD(); continue;
       }
     }
@@ -287,7 +511,7 @@ function updateBullets() {
 }
 
 // ===== 粒子 =====
-function updateParts() {
+function updateParts(dt) {
   for (let i = G.parts.length - 1; i >= 0; i--) {
     let p = G.parts[i];
     p.x += p.vx; p.y += p.vy; p.life--;
@@ -313,8 +537,9 @@ function drawTank(px, py, dir, col1, col2, isPlayer) {
 }
 
 function drawMap() {
+  let map = MAPS[currentMapIndex];
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-    let t = MAP[r][c], x = c*T, y = r*T;
+    let t = map[r][c], x = c*T, y = r*T;
     if (t === 1) {
       ctx.fillStyle = '#b5893a'; ctx.fillRect(x, y, T, T);
       ctx.fillStyle = '#8b6914';
@@ -333,8 +558,136 @@ function drawMap() {
   }
 }
 
+// ===== 开始界面 =====
+function drawStartScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#4CAF50'; ctx.font = 'bold 56px Arial'; ctx.textAlign = 'center';
+  ctx.fillText('坦克大战', W/2, H/2 - 150);
+
+  ctx.fillStyle = '#888'; ctx.font = '18px Arial';
+  ctx.fillText('按 ↑↓ 选择，空格/点击 确认', W/2, H/2 - 90);
+
+  // 选项
+  ctx.font = '32px Arial';
+  ctx.fillStyle = G.selectedOption === 0 ? '#FFEB3B' : '#666';
+  ctx.fillText('▶ 开始游戏', W/2, H/2 - 20);
+  ctx.fillStyle = G.selectedOption === 1 ? '#FFEB3B' : '#666';
+  ctx.fillText('▶ 退出游戏', W/2, H/2 + 40);
+
+  // 排行榜
+  if (G.rankings.length > 0) {
+    ctx.fillStyle = '#888'; ctx.font = '20px Arial';
+    ctx.fillText('排行榜', W/2, H/2 + 120);
+    ctx.font = '18px Arial';
+    for (let i = 0; i < Math.min(3, G.rankings.length); i++) {
+      ctx.fillStyle = i === 0 ? '#FFD700' : (i === 1 ? '#C0C0C0' : '#CD7F32');
+      ctx.fillText((i+1) + '. ' + G.rankings[i].toFixed(2) + 's', W/2, H/2 + 155 + i * 28);
+    }
+  }
+  ctx.textAlign = 'left';
+}
+
+// ===== 结束界面 =====
+function drawEndScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#4CAF50'; ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center';
+  ctx.fillText(G.state === 'win' ? '通关!' : '游戏结束', W/2, H/2 - 140);
+
+  let total = ((G.endTime || Date.now()) - G.startTime) / 1000;
+  ctx.fillStyle = '#FFD700'; ctx.font = '30px Arial';
+  ctx.fillText('用时: ' + total.toFixed(2) + 's', W/2, H/2 - 85);
+
+  // 更新排行榜
+  if (G.state === 'win') {
+    G.rankings.push(total);
+    G.rankings.sort((a, b) => a - b);
+    G.rankings = G.rankings.slice(0, 3);
+  }
+
+  ctx.fillStyle = '#888'; ctx.font = '18px Arial';
+  ctx.fillText('排行榜', W/2, H/2 - 40);
+  ctx.font = '16px Arial';
+  for (let i = 0; i < 3; i++) {
+    if (i < G.rankings.length) {
+      ctx.fillStyle = i === 0 ? '#FFD700' : (i === 1 ? '#C0C0C0' : '#CD7F32');
+      ctx.fillText((i+1) + '. ' + G.rankings[i].toFixed(2) + 's', W/2, H/2 - 10 + i * 24);
+    } else {
+      ctx.fillStyle = '#555';
+      ctx.fillText((i+1) + '. --', W/2, H/2 - 10 + i * 24);
+    }
+  }
+
+  // 三个选项
+  ctx.font = '26px Arial';
+  ctx.fillStyle = G.selectedOption === 0 ? '#FFEB3B' : '#666';
+  ctx.fillText('▶ 再玩一次', W/2, H/2 + 80);
+  ctx.fillStyle = G.selectedOption === 1 ? '#FFEB3B' : '#666';
+  ctx.fillText('▶ 返回主界面', W/2, H/2 + 125);
+  ctx.fillStyle = G.selectedOption === 2 ? '#FFEB3B' : '#666';
+  ctx.fillText('▶ 退出游戏', W/2, H/2 + 170);
+
+  ctx.fillStyle = '#555'; ctx.font = '15px Arial';
+  ctx.fillText('按 ↑↓ 选择，空格/点击 确认', W/2, H/2 + 220);
+  ctx.textAlign = 'left';
+}
+
+// 鼠标点击处理
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const y = (e.clientY - rect.top) * (H / rect.height);
+
+  if (G.state === 'start') {
+    // 检查开始游戏按钮区域 (y: H/2-50 到 H/2+10)
+    if (y >= H/2 - 50 && y <= H/2 + 10) {
+      startGame();
+    } else if (y >= H/2 + 10 && y <= H/2 + 70) {
+      window.close();
+    }
+  } else if (G.state === 'win' || G.state === 'lose') {
+    // 再玩一次 (y: H/2+50 到 H/2+105)
+    if (y >= H/2 + 50 && y <= H/2 + 105) {
+      startGame();
+    } else if (y >= H/2 + 105 && y <= H/2 + 155) {
+      // 返回主界面
+      G.state = 'start';
+      G.selectedOption = 0;
+    } else if (y >= H/2 + 155 && y <= H/2 + 205) {
+      window.close();
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (G.state !== 'start' && G.state !== 'win' && G.state !== 'lose') return;
+  const rect = canvas.getBoundingClientRect();
+  const y = (e.clientY - rect.top) * (H / rect.height);
+
+  if (G.state === 'start') {
+    if (y >= H/2 - 50 && y <= H/2 + 10) G.selectedOption = 0;
+    else if (y >= H/2 + 10 && y <= H/2 + 70) G.selectedOption = 1;
+  } else if (G.state === 'win' || G.state === 'lose') {
+    if (y >= H/2 + 50 && y <= H/2 + 105) G.selectedOption = 0;
+    else if (y >= H/2 + 105 && y <= H/2 + 155) G.selectedOption = 1;
+    else if (y >= H/2 + 155 && y <= H/2 + 205) G.selectedOption = 2;
+  }
+});
+
 function render() {
-  ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H);
+  // 渐变背景
+  let grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W);
+  grad.addColorStop(0, '#1a2a3a');
+  grad.addColorStop(1, '#0d1a26');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  // 开始界面
+  if (G.state === 'start') {
+    drawStartScreen();
+    return;
+  }
+
   drawMap();
 
   for (let p of G.parts) {
@@ -345,6 +698,12 @@ function render() {
   ctx.globalAlpha = 1;
 
   for (let e of G.enemies) if (e.alive) drawTank(e.px, e.py, e.dir, e.color, '#b71c1c', false);
+
+  if (G.ally && G.ally.alive) {
+    if (G.allyInv <= 0 || Math.floor(G.allyInv / 6) % 2 === 1) {
+      drawTank(G.ally.px, G.ally.py, G.ally.dir, G.ally.color, '#0d47a1', true);
+    }
+  }
 
   if (G.player && G.player.alive) {
     if (G.inv <= 0 || Math.floor(G.inv / 6) % 2 === 1) {
@@ -358,39 +717,82 @@ function render() {
     ctx.fillStyle = '#fff'; ctx.fillRect(b.x+2, b.y+2, 4, 4);
   }
 
-  if (G.state !== 'playing') {
-    ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#4CAF50'; ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center';
-    ctx.fillText(G.state === 'win' ? '通关!' : '游戏结束', W/2, H/2 - 50);
-    ctx.fillStyle = '#FFD700'; ctx.font = '34px Arial';
-    ctx.fillText('分数: ' + G.score, W/2, H/2 + 10);
-    ctx.fillStyle = '#aaa'; ctx.font = '20px Arial';
-    ctx.fillText('按 Esc 或刷新页面重新开始', W/2, H/2 + 70); ctx.textAlign = 'left';
+  // 倒计时显示
+  if (G.countdown > 0) {
+    let sec = Math.ceil(G.countdown / 60);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(W/2 - 60, H/2 - 40, 120, 80);
+    ctx.fillStyle = '#FFEB3B';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(sec, W/2, H/2 + 15);
+    ctx.font = '16px Arial';
+    ctx.fillText('下一波', W/2, H/2 + 35);
+    ctx.textAlign = 'left';
+  }
+
+  if (G.state === 'win' || G.state === 'lose') {
+    drawEndScreen();
   }
 }
 
 // ===== 主循环 =====
-let nextWaveTimer = 0;
+let lastTime = 0;
+const TARGET_FPS = 60;
+const FIXED_DT = 1000 / TARGET_FPS;
 
-function loop() {
+function resetPositions() {
+  // 玩家回到初始点
+  G.player.col = 5; G.player.row = 14;
+  G.player.px = 5 * T; G.player.py = 14 * T;
+  G.player.targetPx = 5 * T; G.player.targetPy = 14 * T;
+  G.player.dir = 0; G.player.alive = true;
+  // 队友回到初始点（只有还有命时才复活）
+  G.ally.col = 6; G.ally.row = 14;
+  G.ally.px = 6 * T; G.ally.py = 14 * T;
+  G.ally.targetPx = 6 * T; G.ally.targetPy = 14 * T;
+  G.ally.dir = 0;
+  if (G.allyLives > 0) G.ally.alive = true;
+  // 重置无敌状态
+  G.inv = 0; G.allyInv = 0;
+  G.bullets = [];
+}
+
+function loop(timestamp) {
+  let dt = timestamp - lastTime;
+  lastTime = timestamp;
+
   if (G.state === 'playing') {
-    updatePlayer();
-    updateEnemies();
-    updateBullets();
-    updateParts();
+    updatePlayer(dt);
+    updateAlly(dt);
+    updateEnemies(dt);
+    updateBullets(dt);
+    updateParts(dt);
     if (G.inv > 0) G.inv--;
+    if (G.allyInv > 0) G.allyInv--;
 
     let alive = G.enemies.filter(e => e.alive).length;
-    if (alive === 0) {
-      if (G.wave >= 3) { G.state = 'win'; }
-      else { nextWaveTimer = 120; }  // 约2秒后下一波
+    if (alive === 0 && G.countdown === 0) {
+      if (G.wave >= 3) {
+        G.state = 'win';
+        G.endTime = Date.now();
+      }
+      else {
+        G.countdown = 180; // 3秒倒计时
+        resetPositions(); // 先回到初始点
+      }
     }
 
-    if (nextWaveTimer > 0) {
-      nextWaveTimer--;
-      if (nextWaveTimer === 0) spawnWave();
+    if (G.countdown > 0) {
+      G.countdown--;
+      if (G.countdown === 0) {
+        spawnWave(); // 倒计时结束，生成新一波
+      }
     }
 
+    updateHUD();
+  } else if (G.state === 'win' || G.state === 'lose') {
+    updateParts(dt);
     updateHUD();
   }
 
@@ -399,7 +801,6 @@ function loop() {
 }
 
 // ===== 启动 =====
-spawnWave();
 requestAnimationFrame(loop);
 </script>
 </body>
